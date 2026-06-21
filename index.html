@@ -357,38 +357,43 @@ function loadClass(buf){
 }
 
 /* ---------- 2101–2190 extrapolation (computed in-browser from the 2071–2099 base) ----------
-   A thermal "warming ladder": every class steps toward its warmer analogue, scaled to each
-   scenario's post-2100 warming, so warm groups (A tropical, B arid) expand while cold/polar
-   groups (late-D, E) shrink. The change is applied in place (per cell), so the climate
-   overlay stays exactly aligned with the base map — no spatial sliding of the layer. */
-const LADDER=new Uint8Array(31);            // class -> warmer analogue
+   Two coupled effects, scaled to each scenario's post-2100 warming, so the A/B/C/D/E groups
+   visibly shift and expand:
+   (1) thermal "warming ladder" — every class steps toward its warmer analogue (warm groups
+       A/B grow, cold groups late-D/E shrink);
+   (2) poleward advection — the climate field migrates toward the poles, so the belts physically
+       shift and the tropical/arid/temperate zones expand to higher latitudes. Advection only
+       moves climate *within* land cells (ocean stays ocean), so the overlay stays aligned with
+       the base map's coastlines. */
+const LADDER=new Uint8Array(31);            // class -> warmer analogue (EF=30 sticky: ice caps persist)
 (function(){ for(let i=0;i<31;i++)LADDER[i]=i;
   const m={4:4,5:4,6:6,7:6,8:6,9:8,10:9,11:3,12:11,13:12,14:11,15:14,16:15,
-           17:8,18:17,19:18,20:19,21:11,22:21,23:22,24:23,25:14,26:25,27:26,28:27,29:27,30:29};
+           17:8,18:17,19:18,20:19,21:11,22:21,23:22,24:23,25:14,26:25,27:26,28:27,29:27};
   for(const k in m)LADDER[k]=m[k]; LADDER[0]=0; })();
-const STEPS={ ssp119:[0,0,0], ssp126:[0,0,0], ssp245:[1,1,2], ssp370:[2,2,3], ssp585:[2,3,4] };
-const ADV_PER_STEP=0;                         // poleward advection disabled — keeps overlay aligned with the base map
-function extrapolate(base, steps, advRows){
+// per-scenario warming beyond 2099 for [2101-2130, 2131-2160, 2161-2190] (ladder units)
+const WARM={ ssp119:[0,0,0], ssp126:[0,0.3,0.5], ssp245:[0.6,1.0,1.4], ssp370:[1.0,1.6,2.2], ssp585:[1.4,2.0,2.6] };
+function extrapolate(base, w){
+  const steps=Math.min(2,Math.round(w)), adv=Math.round(w*22);   // capped thermal expand + poleward shift
   const lut=new Uint8Array(31); for(let i=0;i<31;i++)lut[i]=i;
   for(let s=0;s<steps;s++){ for(let i=0;i<31;i++) lut[i]=LADDER[lut[i]]; }
   const warmed=new Uint8Array(KN);
   for(let i=0;i<KN;i++) warmed[i]=lut[base[i]];
-  if(advRows<=0){ classIdx.set(warmed); return; }
+  if(adv<=0){ classIdx.set(warmed); return; }
   const eq=KH>>1;
   for(let r=0;r<KH;r++){
-    let sr=r<eq ? r+advRows : r-advRows; if(sr<0)sr=0; else if(sr>=KH)sr=KH-1;
+    let sr=r<eq ? r+adv : r-adv; if(sr<0)sr=0; else if(sr>=KH)sr=KH-1;
     const rb=r*KW, sb=sr*KW;
     for(let c=0;c<KW;c++){ const local=warmed[rb+c];
       if(local===0){ classIdx[rb+c]=0; continue; }
-      const adv=warmed[sb+c]; classIdx[rb+c]= adv>0 ? adv : local; }
+      const a=warmed[sb+c]; classIdx[rb+c]= a>0 ? a : local; }
   }
 }
 async function loadPeriodData(){
   const p=PERIODS.find(x=>x.k===P.period);
   if(p.extrap){
     const buf=await fetchBin(`kg_2071_2099_${P.ssp}.kgz`);   // real 2071–2099 base, then extend
-    const base=new Uint8Array(buf,8,KN), n=STEPS[P.ssp][p.exi];
-    extrapolate(base, n, n*ADV_PER_STEP);
+    const base=new Uint8Array(buf,8,KN);
+    extrapolate(base, WARM[P.ssp][p.exi]);
   } else {
     loadClass(await fetchBin(periodURL()));
   }

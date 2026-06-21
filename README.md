@@ -19,10 +19,16 @@ The 1901–2099 periods are stored as gzip-compressed uint8 class grids (`kg_*.k
 3600×1800, 0.1°), decompressed in the browser via `DecompressionStream`.
 
 Clicking a location also shows **monthly climate averages** (temperature, max
-temperature, rainfall, wind, sunshine, humidity) from WorldClim 2.1 1970–2000
-normals — packed at 0.5° in `climate_monthly.kgz` (lazy-loaded on first click;
-sunshine derived from solar radiation via FAO Angström, humidity from vapour
-pressure). Built by `build/build_monthly.py`.
+temperature, rainfall, wind in mph/km·h⁻¹, sunshine, humidity) from WorldClim 2.1
+1970–2000 normals — packed at 0.5° in `climate_monthly.kgz` (lazy-loaded on first
+click; sunshine derived from solar radiation via FAO Angström, humidity from
+vapour pressure). Tap a bar to read that month's value. Built by
+`build/build_monthly.py`.
+
+**Zoom labels** — countries, states, cities, towns, villages, rivers, landmarks
+and oceans/seas appear with level-of-detail as you zoom in (`labels.json`, from
+Natural Earth via `build/extract_labels.py`; rendered as a pooled DOM overlay with
+near-hemisphere culling and declutter). Toggle with "Place & ocean names".
 
 ## Stack
 Single static `index.html` — Three.js globe (CDN), OpenStreetMap Nominatim for

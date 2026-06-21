@@ -141,8 +141,12 @@
   #inspect .ic-chart-head b{font-size:13px;font-weight:600;color:var(--txt);font-variant-numeric:tabular-nums}
   #inspect .ic-bars{display:flex;align-items:flex-end;gap:3px;height:46px}
   #inspect .ic-bars .bar{flex:1;min-height:2px;border-radius:2px 2px 0 0;background:#2a3850}
+  #inspect .ic-bars .bar{cursor:pointer}
+  #inspect .ic-bars .bar.sel{outline:1.5px solid #fff;outline-offset:-1px}
   #inspect .ic-mlabels{display:flex;gap:3px;margin-top:3px}
   #inspect .ic-mlabels span{flex:1;text-align:center;font-size:8px;color:var(--muted-2)}
+  #inspect .ic-mread{font-size:10px;color:var(--muted);margin-top:6px;min-height:13px;font-variant-numeric:tabular-nums}
+  #inspect .ic-mread b{color:var(--txt);font-weight:600}
   #inspect .hint{font-size:10px;color:var(--muted);margin-top:11px;opacity:.75}
 
   #hintbar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:15;font-size:11px;color:var(--muted);
@@ -150,6 +154,19 @@
     backdrop-filter:blur(10px);display:flex;gap:16px;transition:.4s}
   #hintbar span{display:flex;align-items:center;gap:6px} #hintbar.fade{opacity:0}
 
+  #labels{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:10}
+  #labels .lbl{position:absolute;left:0;top:0;white-space:nowrap;line-height:1;
+    font-size:11px;text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 2px rgba(0,0,0,.85);display:none}
+  #labels .lbl.show{display:block}
+  .lbl.k0{color:#a8cdff;font-style:italic;letter-spacing:.1em;text-transform:uppercase;font-size:10.5px;opacity:.82;font-weight:500}
+  .lbl.k1{color:#ffffff;font-weight:700;font-size:12.5px;letter-spacing:.03em;text-transform:uppercase}
+  .lbl.k2{color:#cfddf2;font-size:10px;letter-spacing:.02em}
+  .lbl.k3{color:#ffffff;font-size:11px;font-weight:500}
+  .lbl.k4{color:#c4d3ea;font-size:9.5px}
+  .lbl.k5{color:#9db0ca;font-size:8.5px}
+  .lbl.k6{color:#82d8ff;font-style:italic;font-size:9.5px;font-weight:500}
+  .lbl.k7{color:#e2d2a3;font-size:9.5px;font-style:italic}
+  .lbl .dot{display:inline-block;width:3px;height:3px;border-radius:50%;background:#fff;margin-right:4px;vertical-align:middle;box-shadow:0 0 2px rgba(0,0,0,.9)}
   @media (max-width:760px){
     #panel{width:auto;left:12px;right:12px;top:auto;bottom:12px;max-height:48vh}
     #inspect{left:12px;right:12px;width:auto;bottom:auto;top:64px}
@@ -159,6 +176,7 @@
 </head>
 <body>
 <div id="app"></div>
+<div id="labels"></div>
 
 <div id="title">
   <h1><span class="dot"></span>Köppen&nbsp;Earth</h1>
@@ -197,6 +215,7 @@
     <div class="sect">
       <div class="lbl">Climate overlay</div>
       <div class="switchrow"><span class="t">Show climate zones</span><div class="sw-toggle on" id="tg-overlay"></div></div>
+      <div class="switchrow"><span class="t">Place &amp; ocean names</span><div class="sw-toggle on" id="tg-labels"></div></div>
       <div class="slider">
         <div class="row"><span class="name">Overlay opacity</span><span class="val" id="v-op">88%</span></div>
         <input type="range" id="s-op" min="0" max="100" value="88">
@@ -233,6 +252,7 @@
       <div class="ic-chart-head"><span id="ic-cvar">Mean temperature</span><b id="ic-cann">—</b></div>
       <div class="ic-bars" id="ic-bars"></div>
       <div class="ic-mlabels"><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span></div>
+      <div class="ic-mread" id="ic-mread">tap a bar for the monthly value · 1970–2000 normals</div>
     </div>
   </div>
   <div class="hint" id="ic-foot">Class: Beck 2023 · Monthly averages: WorldClim 1970–2000</div>
@@ -312,7 +332,7 @@ const enabledByClass=new Uint8Array(KOPPEN.length);
 function recomputeEnabled(){ for(let v=1;v<KOPPEN.length;v++) enabledByClass[v]=enabled[KOPPEN[v][0][0]]?1:0; }
 recomputeEnabled();
 
-const P={op:0.88, overlay:true, base:"satellite", period:"1991_2020", ssp:"ssp245", mvar:"temp"};
+const P={op:0.88, overlay:true, base:"satellite", period:"1991_2020", ssp:"ssp245", mvar:"temp", labels:true};
 
 /* ---------- data loading ---------- */
 const IMG="https://cdn.jsdelivr.net/npm/three-globe/example/img/";
@@ -399,6 +419,42 @@ function update(reOverlay){
   requestAnimationFrame(()=>{ queued=false; if(qOverlay){buildOverlay();qOverlay=false;} composite(); qComp=false; });
 }
 
+/* ---------- zoom place + ocean labels (Natural Earth) ---------- */
+let LB=null, lbPos=[], lbPool=[]; const LB_R=1.5, LB_POOL=180, _sv=new THREE.Vector3();
+function lonlatToVec(lat,lon){ const PH=(90-lat)*Math.PI/180, TH=(lon+180)*Math.PI/180, sp=Math.sin(PH);
+  return new THREE.Vector3(-LB_R*Math.cos(TH)*sp, LB_R*Math.cos(PH), LB_R*Math.sin(TH)*sp); }
+async function loadLabels(){
+  try{ const r=await fetch("labels.json",{cache:"force-cache"}); if(!r.ok) throw new Error(r.status);
+    LB=await r.json(); lbPos=LB.map(e=>lonlatToVec(e[1],e[2]));
+    const cont=$("#labels"); for(let i=0;i<LB_POOL;i++){ const d=document.createElement("div"); d.className="lbl"; d._idx=-1; cont.appendChild(d); lbPool.push(d); }
+  }catch(e){ console.warn("labels load failed",e); }
+}
+const _cand=[];
+function updateLabels(){
+  if(!LB) return;
+  if(!P.labels){ for(const d of lbPool) if(d._idx!==-1){d.classList.remove("show");d._idx=-1;} return; }
+  const cam=camera.position, camDist=cam.length(), R2=LB_R*LB_R*1.03, W=innerWidth, H=innerHeight;
+  _cand.length=0;
+  for(let i=0;i<LB.length;i++){ const e=LB[i];
+    if(e[4]<camDist) continue;                                   // LOD: show only when zoomed in enough
+    const p=lbPos[i]; if(p.x*cam.x+p.y*cam.y+p.z*cam.z < R2) continue;   // near-hemisphere only
+    _cand.push(i); }
+  _cand.sort((a,b)=>LB[b][4]-LB[a][4]);                          // most important first
+  let used=0; const PX=[],PY=[];
+  for(let c=0;c<_cand.length && used<LB_POOL;c++){
+    const i=_cand[c]; _sv.copy(lbPos[i]).project(camera); if(_sv.z>1) continue;
+    const sx=(_sv.x*0.5+0.5)*W, sy=(-_sv.y*0.5+0.5)*H;
+    if(sx<-60||sx>W+60||sy<-20||sy>H+20) continue;
+    let ok=true; for(let k=0;k<used;k++){ if(Math.abs(sx-PX[k])<34 && Math.abs(sy-PY[k])<12){ ok=false; break; } }
+    if(!ok) continue;
+    const e=LB[i], kd=e[3], d=lbPool[used];
+    if(d._idx!==i){ d._idx=i; d.className="lbl k"+kd+" show"; d.innerHTML=((kd>=3&&kd<=5)?'<span class="dot"></span>':'')+e[0]; }
+    d.style.transform="translate("+sx.toFixed(1)+"px,"+sy.toFixed(1)+"px) translate(-50%,-50%)";
+    PX[used]=sx; PY[used]=sy; used++;
+  }
+  for(let j=used;j<LB_POOL;j++){ const d=lbPool[j]; if(d._idx!==-1){ d.classList.remove("show"); d._idx=-1; } }
+}
+
 /* ---------- three.js scene ---------- */
 let renderer,scene,camera,controls,globe,raycaster;
 function initScene(){
@@ -441,7 +497,7 @@ function initScene(){
   renderer.domElement.addEventListener("pointerdown",e=>{dx=e.clientX;dy=e.clientY;moved=false;controls.autoRotate=false;});
   renderer.domElement.addEventListener("pointermove",e=>{ if(Math.abs(e.clientX-dx)>4||Math.abs(e.clientY-dy)>4)moved=true; });
   renderer.domElement.addEventListener("pointerup",e=>{ if(!moved) inspect(e); });
-  (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); })();
+  (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); updateLabels(); })();
 }
 
 /* ---------- inspector + geocoding ---------- */
@@ -494,7 +550,7 @@ const MVARS=[
   {key:"temp",name:"Mean temperature",label:"Temp",unit:"°C", sc:0.1, mult:1,   agg:"mean", dec:1, col:"#ff9b6b", zero:false},
   {key:"tmax",name:"Max temperature", label:"Max",  unit:"°C", sc:0.1, mult:1,   agg:"mean", dec:1, col:"#ff6b6b", zero:false},
   {key:"rain",name:"Rainfall",        label:"Rain", unit:"mm", sc:1,   mult:1,   agg:"sum",  dec:0, col:"#5fb6ff", zero:true},
-  {key:"wind",name:"Wind speed",      label:"Wind", unit:"km/h",sc:0.1, mult:3.6, agg:"mean", dec:1, col:"#7affc4", zero:true},
+  {key:"wind",name:"Wind speed",      label:"Wind", unit:"mph", sc:0.1, mult:2.23694, unit2:"km/h", mult2:3.6, agg:"mean", dec:1, col:"#7affc4", zero:true},
   {key:"sun", name:"Sunshine",        label:"Sun",  unit:"h/day",sc:0.1,mult:1,   agg:"mean", dec:1, col:"#ffd45f", zero:true},
   {key:"hum", name:"Humidity",        label:"Humidity",unit:"%",sc:0.1, mult:1,   agg:"mean", dec:0, col:"#9fd0ff", zero:true},
 ];
@@ -539,12 +595,16 @@ function renderChart(){
   const nums=vals.filter(x=>x!=null);
   if(!nums.length){ ann.textContent="—"; bars.innerHTML=Array(12).fill('<div class="bar"></div>').join(""); return; }
   const total=nums.reduce((a,b)=>a+b,0), annual=V.agg==="sum"?total:total/nums.length;
-  ann.textContent=(V.agg==="sum"?"Σ ":"⌀ ")+annual.toFixed(V.dec)+" "+V.unit;
+  let annText=(V.agg==="sum"?"Σ ":"⌀ ")+annual.toFixed(V.dec)+" "+V.unit;
+  if(V.unit2) annText+=" · "+(annual/V.mult*V.mult2).toFixed(V.dec)+" "+V.unit2;
+  ann.textContent=annText;
   let mn=Math.min(...nums), mx=Math.max(...nums); const floor=V.zero?0:mn; if(mx-floor<1e-6)mx=floor+1;
-  bars.innerHTML=vals.map((x,m)=>{ if(x==null) return '<div class="bar"></div>';
+  bars.innerHTML=vals.map((x,m)=>{ if(x==null) return '<div class="bar" data-m="'+m+'"></div>';
     const ht=Math.max(2,Math.round((x-floor)/(mx-floor)*44));
-    return `<div class="bar" title="${MONTH3[m]}: ${x.toFixed(V.dec)} ${V.unit}" style="height:${ht}px;background:${V.col}"></div>`;
+    const lbl=MONTH3[m]+": "+x.toFixed(V.dec)+" "+V.unit+(V.unit2?" / "+(x/V.mult*V.mult2).toFixed(V.dec)+" "+V.unit2:"");
+    return `<div class="bar" data-m="${m}" title="${lbl}" style="height:${ht}px;background:${V.col}"></div>`;
   }).join("");
+  $("#ic-mread").innerHTML="tap a bar for the monthly value · 1970–2000 normals";
 }
 
 /* ---------- period switching ---------- */
@@ -586,6 +646,7 @@ function buildUI(){
   $("#seg-base").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b)return;
     [...e.currentTarget.children].forEach(x=>x.classList.toggle("on",x===b)); P.base=b.dataset.base; composite(); });
   $("#tg-overlay").addEventListener("click",function(){ P.overlay=!P.overlay; this.classList.toggle("on",P.overlay); composite(); });
+  $("#tg-labels").addEventListener("click",function(){ P.labels=!P.labels; this.classList.toggle("on",P.labels); });
   $("#s-op").addEventListener("input",function(){ P.op=this.value/100; $("#v-op").textContent=this.value+"%"; composite(); });
 
   const zc=$("#zones"), tick=`<svg viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" fill="none" stroke="#04101e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -612,6 +673,10 @@ function buildUI(){
         x.style.background=on?v.col:""; });
       renderChart(); });
     vc.appendChild(b); });
+  // tap a month bar to read its value
+  $("#ic-bars").addEventListener("click",e=>{ const bar=e.target.closest(".bar"); if(!bar||!bar.title)return;
+    [...$("#ic-bars").children].forEach(x=>x.classList.toggle("sel",x===bar));
+    const t=bar.title, i=t.indexOf(": "); $("#ic-mread").innerHTML=t.slice(0,i)+" &nbsp;<b>"+t.slice(i+2)+"</b>"; });
 
   $("#res-tag").textContent="0.1° · "+(KW)+"×"+(KH);
   setTimeout(()=>$("#hintbar").classList.add("fade"),6000);
@@ -631,7 +696,7 @@ async function boot(){
     if(!baseCanvas.night) baseCanvas.night=baseCanvas.dark||baseCanvas.none;
     if(!baseCanvas.dark) baseCanvas.dark=baseCanvas.none;
     setTxt("Rendering globe…");
-    initScene(); buildUI();
+    initScene(); buildUI(); loadLabels();
     buildOverlay(); composite();
     $("#period-hint").innerHTML=periodHintText();
     $("#subtitle").innerHTML='Observed <b>1991–2020</b> · Köppen-Geiger';

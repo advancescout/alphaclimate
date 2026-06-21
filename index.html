@@ -315,18 +315,17 @@ function loadClass(buf){
 }
 
 /* ---------- 2101–2190 extrapolation (computed in-browser from the 2071–2099 base) ----------
-   Two coupled effects scaled to each scenario's post-2100 warming:
-   (1) a thermal "warming ladder" — every class steps toward its warmer analogue, so warm
-       groups (A tropical, B arid) grow while cold/polar groups (D-late, E) shrink;
-   (2) a poleward advection — each climate is pulled toward the poles, so the belts visibly
-       shift and expand toward higher latitudes (land mask is preserved). */
+   A thermal "warming ladder": every class steps toward its warmer analogue, scaled to each
+   scenario's post-2100 warming, so warm groups (A tropical, B arid) expand while cold/polar
+   groups (late-D, E) shrink. The change is applied in place (per cell), so the climate
+   overlay stays exactly aligned with the base map — no spatial sliding of the layer. */
 const LADDER=new Uint8Array(31);            // class -> warmer analogue
 (function(){ for(let i=0;i<31;i++)LADDER[i]=i;
   const m={4:4,5:4,6:6,7:6,8:6,9:8,10:9,11:3,12:11,13:12,14:11,15:14,16:15,
            17:8,18:17,19:18,20:19,21:11,22:21,23:22,24:23,25:14,26:25,27:26,28:27,29:27,30:29};
   for(const k in m)LADDER[k]=m[k]; LADDER[0]=0; })();
 const STEPS={ ssp119:[0,0,0], ssp126:[0,0,0], ssp245:[1,1,2], ssp370:[2,2,3], ssp585:[2,3,4] };
-const ADV_PER_STEP=16;                       // grid rows of poleward shift per ladder step (~1.6°)
+const ADV_PER_STEP=0;                         // poleward advection disabled — keeps overlay aligned with the base map
 function extrapolate(base, steps, advRows){
   const lut=new Uint8Array(31); for(let i=0;i<31;i++)lut[i]=i;
   for(let s=0;s<steps;s++){ for(let i=0;i<31;i++) lut[i]=LADDER[lut[i]]; }

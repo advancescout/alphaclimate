@@ -129,6 +129,20 @@
   #inspect .ic-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
   #inspect .ic-stats div{font-size:11px;color:var(--muted)}
   #inspect .ic-stats div b{display:block;color:var(--txt);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:1px}
+  #inspect .ic-avg{margin-top:12px;border-top:1px solid var(--stroke);padding-top:11px}
+  #inspect .ic-vars{display:flex;flex-wrap:wrap;gap:4px}
+  #inspect .ic-vars button{appearance:none;border:1px solid var(--stroke);background:rgba(255,255,255,.02);color:var(--muted);
+    font-size:10px;font-weight:600;padding:4px 7px;border-radius:7px;cursor:pointer;transition:.14s;letter-spacing:.01em}
+  #inspect .ic-vars button:hover{color:var(--txt);border-color:var(--stroke-2)}
+  #inspect .ic-vars button.on{color:#04101e;border-color:transparent}
+  #inspect .ic-chart{margin-top:10px}
+  #inspect .ic-chart-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  #inspect .ic-chart-head span{font-size:11px;color:var(--muted)}
+  #inspect .ic-chart-head b{font-size:13px;font-weight:600;color:var(--txt);font-variant-numeric:tabular-nums}
+  #inspect .ic-bars{display:flex;align-items:flex-end;gap:3px;height:46px}
+  #inspect .ic-bars .bar{flex:1;min-height:2px;border-radius:2px 2px 0 0;background:#2a3850}
+  #inspect .ic-mlabels{display:flex;gap:3px;margin-top:3px}
+  #inspect .ic-mlabels span{flex:1;text-align:center;font-size:8px;color:var(--muted-2)}
   #inspect .hint{font-size:10px;color:var(--muted);margin-top:11px;opacity:.75}
 
   #hintbar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:15;font-size:11px;color:var(--muted);
@@ -213,7 +227,15 @@
     <div>Climate group<b id="ic-grp">—</b></div>
     <div>Period<b id="ic-per">—</b></div>
   </div>
-  <div class="hint" id="ic-foot">Authoritative Köppen-Geiger classification</div>
+  <div class="ic-avg">
+    <div class="ic-vars" id="ic-vars"></div>
+    <div class="ic-chart">
+      <div class="ic-chart-head"><span id="ic-cvar">Mean temperature</span><b id="ic-cann">—</b></div>
+      <div class="ic-bars" id="ic-bars"></div>
+      <div class="ic-mlabels"><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span></div>
+    </div>
+  </div>
+  <div class="hint" id="ic-foot">Class: Beck 2023 · Monthly averages: WorldClim 1970–2000</div>
 </div>
 
 <div id="hintbar">
@@ -290,7 +312,7 @@ const enabledByClass=new Uint8Array(KOPPEN.length);
 function recomputeEnabled(){ for(let v=1;v<KOPPEN.length;v++) enabledByClass[v]=enabled[KOPPEN[v][0][0]]?1:0; }
 recomputeEnabled();
 
-const P={op:0.88, overlay:true, base:"satellite", period:"1991_2020", ssp:"ssp245"};
+const P={op:0.88, overlay:true, base:"satellite", period:"1991_2020", ssp:"ssp245", mvar:"temp"};
 
 /* ---------- data loading ---------- */
 const IMG="https://cdn.jsdelivr.net/npm/three-globe/example/img/";
@@ -464,6 +486,65 @@ function inspect(e){
   $("#ic-lat").textContent=fmtLat(lat); $("#ic-lon").textContent=fmtLon(lon);
   $("#ic-per").textContent=periodShort(); geocode(lat,lon); fillStats(i);
   $("#inspect").classList.add("show");
+  updateClimate(lat,lon);
+}
+
+/* ---------- monthly climate averages (WorldClim 1970–2000 normals, lazy-loaded) ---------- */
+const MVARS=[
+  {key:"temp",name:"Mean temperature",label:"Temp",unit:"°C", sc:0.1, mult:1,   agg:"mean", dec:1, col:"#ff9b6b", zero:false},
+  {key:"tmax",name:"Max temperature", label:"Max",  unit:"°C", sc:0.1, mult:1,   agg:"mean", dec:1, col:"#ff6b6b", zero:false},
+  {key:"rain",name:"Rainfall",        label:"Rain", unit:"mm", sc:1,   mult:1,   agg:"sum",  dec:0, col:"#5fb6ff", zero:true},
+  {key:"wind",name:"Wind speed",      label:"Wind", unit:"km/h",sc:0.1, mult:3.6, agg:"mean", dec:1, col:"#7affc4", zero:true},
+  {key:"sun", name:"Sunshine",        label:"Sun",  unit:"h/day",sc:0.1,mult:1,   agg:"mean", dec:1, col:"#ffd45f", zero:true},
+  {key:"hum", name:"Humidity",        label:"Humidity",unit:"%",sc:0.1, mult:1,   agg:"mean", dec:0, col:"#9fd0ff", zero:true},
+];
+const MONTH3=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const M_SENT=-32768;
+let monthly=null, monthlyPromise=null, monthlyState="idle", lastMI=-1;
+function ensureMonthly(){
+  if(monthlyPromise) return monthlyPromise;
+  monthlyState="loading";
+  monthlyPromise=(async()=>{ try{
+    const buf=await fetchBin("climate_monthly.kgz"); const dv=new DataView(buf);
+    monthly={ w:dv.getInt32(0,true), h:dv.getInt32(4,true), nv:dv.getInt32(8,true), nm:dv.getInt32(12,true), data:new Int16Array(buf,16) };
+    monthlyState="ready"; return monthly;
+  }catch(e){ console.warn("monthly averages load failed",e); monthlyState="error"; return null; } })();
+  return monthlyPromise;
+}
+function monthlyCell(M,lon,lat){            // -> grid index of nearest land cell with data, or -1
+  const w=M.w,h=M.h,plane=w*h;
+  let px=clamp((lon+180)/360*w|0,0,w-1), py=clamp((90-lat)/180*h|0,0,h-1);
+  const land=(x,y)=> M.data[y*w+x]!==M_SENT;     // temp-Jan plane (index 0) = land mask
+  if(!land(px,py)){ let best=-1,bd=1e9;
+    for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){ const x=clamp(px+dx,0,w-1),y=clamp(py+dy,0,h-1);
+      if(land(x,y)){ const d=dx*dx+dy*dy; if(d<bd){bd=d;best=y*w+x;} } }
+    return best;
+  }
+  return py*w+px;
+}
+async function updateClimate(lat,lon){
+  renderChart();                                  // show loading/placeholder immediately
+  const M=await ensureMonthly();
+  if(!M){ lastMI=-1; renderChart(); return; }
+  lastMI=monthlyCell(M,lon,lat); renderChart();
+}
+function renderChart(){
+  const V=MVARS.find(v=>v.key===P.mvar), vi=MVARS.indexOf(V);
+  $("#ic-cvar").textContent=V.name;
+  const bars=$("#ic-bars"), ann=$("#ic-cann");
+  if(monthlyState==="loading" && !monthly){ ann.textContent="loading…"; bars.innerHTML=""; return; }
+  if(!monthly || lastMI<0){ ann.textContent="—"; bars.innerHTML=Array(12).fill('<div class="bar"></div>').join(""); return; }
+  const plane=monthly.w*monthly.h, vals=[];
+  for(let m=0;m<12;m++){ const raw=monthly.data[(vi*12+m)*plane+lastMI]; vals.push(raw===M_SENT?null:raw*V.sc*V.mult); }
+  const nums=vals.filter(x=>x!=null);
+  if(!nums.length){ ann.textContent="—"; bars.innerHTML=Array(12).fill('<div class="bar"></div>').join(""); return; }
+  const total=nums.reduce((a,b)=>a+b,0), annual=V.agg==="sum"?total:total/nums.length;
+  ann.textContent=(V.agg==="sum"?"Σ ":"⌀ ")+annual.toFixed(V.dec)+" "+V.unit;
+  let mn=Math.min(...nums), mx=Math.max(...nums); const floor=V.zero?0:mn; if(mx-floor<1e-6)mx=floor+1;
+  bars.innerHTML=vals.map((x,m)=>{ if(x==null) return '<div class="bar"></div>';
+    const ht=Math.max(2,Math.round((x-floor)/(mx-floor)*44));
+    return `<div class="bar" title="${MONTH3[m]}: ${x.toFixed(V.dec)} ${V.unit}" style="height:${ht}px;background:${V.col}"></div>`;
+  }).join("");
 }
 
 /* ---------- period switching ---------- */
@@ -521,6 +602,16 @@ function buildUI(){
   const toggleInfo=()=>{ const open=ip.classList.toggle("show"); ib.classList.toggle("on",open); };
   ib.addEventListener("click",toggleInfo);
   ib.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggleInfo(); } });
+
+  // monthly-average variable tabs
+  const vc=$("#ic-vars");
+  MVARS.forEach(v=>{ const b=document.createElement("button"); b.dataset.v=v.key; b.textContent=v.label;
+    if(v.key===P.mvar){ b.classList.add("on"); b.style.background=v.col; }
+    b.addEventListener("click",()=>{ P.mvar=v.key;
+      [...vc.children].forEach(x=>{ const on=x.dataset.v===v.key; x.classList.toggle("on",on);
+        x.style.background=on?v.col:""; });
+      renderChart(); });
+    vc.appendChild(b); });
 
   $("#res-tag").textContent="0.1° · "+(KW)+"×"+(KH);
   setTimeout(()=>$("#hintbar").classList.add("fade"),6000);

@@ -18,6 +18,12 @@ climate periods (1901–2190) and SSP scenarios.
 The 1901–2099 periods are stored as gzip-compressed uint8 class grids (`kg_*.kgz`,
 3600×1800, 0.1°), decompressed in the browser via `DecompressionStream`.
 
+Clicking a location also shows **monthly climate averages** (temperature, max
+temperature, rainfall, wind, sunshine, humidity) from WorldClim 2.1 1970–2000
+normals — packed at 0.5° in `climate_monthly.kgz` (lazy-loaded on first click;
+sunshine derived from solar radiation via FAO Angström, humidity from vapour
+pressure). Built by `build/build_monthly.py`.
+
 ## Stack
 Single static `index.html` — Three.js globe (CDN), OpenStreetMap Nominatim for
 click-to-inspect place names. No build step.

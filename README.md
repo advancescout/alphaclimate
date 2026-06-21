@@ -9,10 +9,13 @@ climate periods (1901–2190) and SSP scenarios.
 - **1901–2099** — Köppen–Geiger maps from Beck et al. (2023), *High-resolution
   (1 km) Köppen-Geiger maps for 1901–2099 based on constrained CMIP6 projections*
   (0.1° tier), via https://www.gloh2o.org/koppen/.
-- **2101–2190** — a forward extension of each scenario's warming trajectory beyond
-  the published 2099 horizon (see `build/build_extrap.py`). Not a published dataset.
+- **2101–2190** — computed in the browser from the 2071–2099 map: a thermal
+  "warming ladder" (each class steps toward its warmer analogue, so tropical/arid
+  groups expand and cold/polar groups shrink) plus a **poleward advection** (zones
+  shift toward the poles), scaled per scenario to expected post-2100 warming. See
+  the `extrapolate()` function in `index.html`. Not a published dataset.
 
-Each period is stored as a gzip-compressed uint8 class grid (`kg_*.kgz`,
+The 1901–2099 periods are stored as gzip-compressed uint8 class grids (`kg_*.kgz`,
 3600×1800, 0.1°), decompressed in the browser via `DecompressionStream`.
 
 ## Stack
@@ -21,6 +24,6 @@ click-to-inspect place names. No build step.
 
 ## Build scripts (`build/`)
 - `build_kg.py` — convert Beck-2023 GeoTIFFs → `kg_<period>[_<ssp>].kgz`
-- `build_extrap.py` — generate the 2101–2190 extension maps
+  (the 2101–2190 extension is computed client-side, see `extrapolate()` in `index.html`)
 
 Imagery: NASA via three-globe. Deployed on Vercel.

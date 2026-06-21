@@ -270,9 +270,9 @@ const PERIODS=[
  {k:"1991_2020",label:"1991–2020",era:"present-day",hist:true},
  {k:"2041_2070",label:"2041–2070",era:"projected",hist:false},
  {k:"2071_2099",label:"2071–2099",era:"projected",hist:false},
- {k:"2101_2130",label:"2101–2130",era:"projected",hist:false,extrap:true},
- {k:"2131_2160",label:"2131–2160",era:"projected",hist:false,extrap:true},
- {k:"2161_2190",label:"2161–2190",era:"projected",hist:false,extrap:true},
+ {k:"2101_2130",label:"2101–2130",era:"projected",hist:false,extrap:true,exi:0},
+ {k:"2131_2160",label:"2131–2160",era:"projected",hist:false,extrap:true,exi:1},
+ {k:"2161_2190",label:"2161–2190",era:"projected",hist:false,extrap:true,exi:2},
 ];
 const SSPS=[
  {k:"ssp119",label:"SSP1-1.9",sub:"+1.5 °C path"},
@@ -312,6 +312,45 @@ function loadClass(buf){
   const dv=new DataView(buf), w=dv.getInt32(0,true), h=dv.getInt32(4,true);
   if(w!==KW||h!==KH) throw new Error("grid mismatch "+w+"x"+h);
   const src=new Uint8Array(buf,8,KN); classIdx.set(src);
+}
+
+/* ---------- 2101–2190 extrapolation (computed in-browser from the 2071–2099 base) ----------
+   Two coupled effects scaled to each scenario's post-2100 warming:
+   (1) a thermal "warming ladder" — every class steps toward its warmer analogue, so warm
+       groups (A tropical, B arid) grow while cold/polar groups (D-late, E) shrink;
+   (2) a poleward advection — each climate is pulled toward the poles, so the belts visibly
+       shift and expand toward higher latitudes (land mask is preserved). */
+const LADDER=new Uint8Array(31);            // class -> warmer analogue
+(function(){ for(let i=0;i<31;i++)LADDER[i]=i;
+  const m={4:4,5:4,6:6,7:6,8:6,9:8,10:9,11:3,12:11,13:12,14:11,15:14,16:15,
+           17:8,18:17,19:18,20:19,21:11,22:21,23:22,24:23,25:14,26:25,27:26,28:27,29:27,30:29};
+  for(const k in m)LADDER[k]=m[k]; LADDER[0]=0; })();
+const STEPS={ ssp119:[0,0,0], ssp126:[0,0,0], ssp245:[1,1,2], ssp370:[2,2,3], ssp585:[2,3,4] };
+const ADV_PER_STEP=16;                       // grid rows of poleward shift per ladder step (~1.6°)
+function extrapolate(base, steps, advRows){
+  const lut=new Uint8Array(31); for(let i=0;i<31;i++)lut[i]=i;
+  for(let s=0;s<steps;s++){ for(let i=0;i<31;i++) lut[i]=LADDER[lut[i]]; }
+  const warmed=new Uint8Array(KN);
+  for(let i=0;i<KN;i++) warmed[i]=lut[base[i]];
+  if(advRows<=0){ classIdx.set(warmed); return; }
+  const eq=KH>>1;
+  for(let r=0;r<KH;r++){
+    let sr=r<eq ? r+advRows : r-advRows; if(sr<0)sr=0; else if(sr>=KH)sr=KH-1;
+    const rb=r*KW, sb=sr*KW;
+    for(let c=0;c<KW;c++){ const local=warmed[rb+c];
+      if(local===0){ classIdx[rb+c]=0; continue; }
+      const adv=warmed[sb+c]; classIdx[rb+c]= adv>0 ? adv : local; }
+  }
+}
+async function loadPeriodData(){
+  const p=PERIODS.find(x=>x.k===P.period);
+  if(p.extrap){
+    const buf=await fetchBin(`kg_2071_2099_${P.ssp}.kgz`);   // real 2071–2099 base, then extend
+    const base=new Uint8Array(buf,8,KN), n=STEPS[P.ssp][p.exi];
+    extrapolate(base, n, n*ADV_PER_STEP);
+  } else {
+    loadClass(await fetchBin(periodURL()));
+  }
 }
 
 /* ---------- overlay / composite ---------- */
@@ -440,7 +479,7 @@ async function setPeriod(){
   $("#scen-wrap").classList.toggle("disabled",p.hist);
   hint.classList.add("loading"); hint.classList.remove("extrap"); hint.innerHTML="Loading "+p.label+(p.hist?"":" · "+SLABEL[P.ssp])+"…";
   try{
-    loadClass(await fetchBin(periodURL()));
+    await loadPeriodData();
     update(true); refreshInspect();
     hint.classList.remove("loading"); hint.classList.remove("extrap"); hint.innerHTML=periodHintText();
     $("#subtitle").innerHTML = p.hist ? 'Observed <b>'+p.label+'</b> · Köppen-Geiger'
@@ -493,7 +532,7 @@ async function boot(){
   const setTxt=t=>$("#loadtxt").textContent=t;
   try{
     setTxt("Loading Köppen-Geiger maps…");
-    loadClass(await fetchBin(periodURL()));
+    await loadPeriodData();
     setTxt("Loading imagery layers…");
     const tryLoad=async(n,u)=>{ try{ baseCanvas[n]=makeBaseCanvas(await loadImg(u)); }catch(_){} };
     await Promise.all([ tryLoad("satellite",IMG+"earth-blue-marble.jpg"), tryLoad("night",IMG+"earth-night.jpg"), tryLoad("dark",IMG+"earth-dark.jpg") ]);

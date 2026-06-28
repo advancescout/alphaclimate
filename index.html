@@ -497,7 +497,7 @@ function ensureGdp(){
 function setGdpYear(){ $("#gdp-yr").textContent=Math.round(1960+P.gdpT*40); }
 function playGdpMotion(){
   if(gdpPlay){ cancelAnimationFrame(gdpPlay); gdpPlay=null; }
-  let t=0; const step=()=>{ t=Math.min(1,t+0.02); P.gdpT=t; $("#gdp-time").value=t*100; setGdpYear(); composite();
+  let t=0; const step=()=>{ t=Math.min(1,t+0.01); P.gdpT=t; $("#gdp-time").value=t*100; setGdpYear(); composite();
     gdpPlay = t<1 ? requestAnimationFrame(step) : null; };
   step();
 }

@@ -27,6 +27,13 @@ click; sunshine derived from solar radiation via FAO Angström, humidity from
 vapour pressure). Tap a bar to read that month's value. Built by
 `build/build_monthly.py`.
 
+**Map layers** — switch between the real **Climate** map and a **GDP motion**
+layer: a conceptual data-art piece that paints each country (and Spanish region) a
+Köppen colour by GDP per capita (richer → hotter/drier), explicitly assigned for
+named countries and driven by Natural-Earth GDP/capita for the rest, then animated
+1960 (a frozen ET/EF world) → 2000. Grids built by `build/build_gdp.py`
+(`gdp_1960.kgz`, `gdp_2000.kgz`); crossfaded in-browser. Not climate.
+
 **Zoom labels** — countries, states, cities, towns, villages, rivers, landmarks
 and oceans/seas appear with level-of-detail as you zoom in (`labels.json`, from
 Natural Earth via `build/extract_labels.py`; rendered as a pooled DOM overlay with

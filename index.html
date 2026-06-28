@@ -386,13 +386,22 @@ function loadImg(url){ return new Promise((res,rej)=>{ const im=new Image(); im.
 const binCache={};
 function periodURL(){ return PERIODS.find(p=>p.k===P.period).hist
   ? `kg_${P.period}.kgz` : `kg_${P.period}_${P.ssp}.kgz`; }
+let pakoPromise=null;
+function loadPako(){ if(pakoPromise) return pakoPromise;
+  pakoPromise=new Promise((res,rej)=>{ const s=document.createElement("script");
+    s.src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js";
+    s.onload=res; s.onerror=()=>rej(new Error("pako load failed")); document.head.appendChild(s); });
+  return pakoPromise;
+}
 async function fetchBin(url){
   if(binCache[url]) return binCache[url];
   const r=await fetch(url,{cache:"force-cache"}); if(!r.ok) throw new Error("no "+url+" ("+r.status+")");
   let b;
-  if(url.endsWith(".kgz") && typeof DecompressionStream!=="undefined")
-    b=await new Response(r.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
-  else b=await r.arrayBuffer();
+  if(url.endsWith(".kgz")){
+    if(typeof DecompressionStream!=="undefined")
+      b=await new Response(r.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+    else { await loadPako(); const out=pako.inflate(new Uint8Array(await r.arrayBuffer())); b=out.buffer.slice(out.byteOffset,out.byteOffset+out.byteLength); }
+  } else b=await r.arrayBuffer();
   binCache[url]=b; return b;
 }
 function loadClass(buf){
@@ -801,7 +810,7 @@ async function boot(){
     $("#period-hint").innerHTML=periodHintText();
     $("#subtitle").innerHTML='Observed <b>1991–2020</b> · Köppen-Geiger';
     setTimeout(()=>$("#loader").classList.add("hide"),250);
-  }catch(err){ setTxt("Failed to load data — is the server running?"); console.error(err); }
+  }catch(err){ setTxt("Couldn't load map data — check your connection, or try an updated browser."); console.error(err); }
 }
 boot();
 })();

@@ -104,6 +104,32 @@ for ft in a1:
         draw_feature(d, ft["geometry"], sp_class(pr.get("name") or pr.get("name_local") or "")); ns+=1
 print(f"  Spain regions drawn: {ns}")
 
+# --- Seoul sub-city (user spec): richest districts -> BSh ---
+# Gangnam-gu, Seocho-gu, Songpa-gu, Yongsan-gu as lon/lat boxes (Natural Earth
+# carries no Seoul district geometries; boxes are plenty at 0.1°).
+SEOUL_RICH=[  # (lon0,lon1,lat0,lat1)
+ (127.02,127.12,37.46,37.54),   # Gangnam-gu
+ (126.98,127.09,37.42,37.52),   # Seocho-gu
+ (127.06,127.17,37.46,37.55),   # Songpa-gu
+ (126.95,127.01,37.51,37.56),   # Yongsan-gu
+]
+def seoul_cells():
+    """0.1° cells at least a quarter covered by the union of the district boxes."""
+    cells=[]; S=10
+    for r in range(520,530):
+        for c in range(3065,3075):
+            hit=0
+            for j in range(S):
+                for i in range(S):
+                    lon=-180+(c+(i+0.5)/S)*0.1; lat=90-(r+(j+0.5)/S)*0.1
+                    if any(x0<=lon<x1 and y0<=lat<y1 for x0,x1,y0,y1 in SEOUL_RICH): hit+=1
+            if hit>=S*S*0.25: cells.append((r,c))
+    return cells
+px=img.load(); nk=0
+for r,c in seoul_cells():
+    if px[c,r]: px[c,r]=C["BSh"]; nk+=1     # land cells only
+print(f"  Seoul rich-district cells -> BSh: {nk}")
+
 g2000=bytearray(img.tobytes())                # uint8 grid, row-major
 # --- 1960 slide: a frozen world (ET, EF poleward) on the same land footprint ---
 g1960=bytearray(len(g2000))

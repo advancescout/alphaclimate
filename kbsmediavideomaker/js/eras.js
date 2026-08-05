@@ -36,6 +36,19 @@ export const FONT_PROBES = [
 ];
 
 /* --------------------------------------------------------------------------
+   Font stacks
+   The webfonts come from Google Fonts, which is not reachable everywhere —
+   corporate networks block it, and the Artifact sandbox blocks it outright.
+   Each stack therefore falls through to the Korean faces that ship with
+   macOS/iOS, Windows and Android/Linux, so an era still reads as Myeongjo
+   (serif) or Gothic (sans) even when nothing downloads.
+   -------------------------------------------------------------------------- */
+const SERIF_FALLBACK = 'AppleMyungjo, Batang, "Noto Serif KR", "Noto Serif CJK KR", "Source Han Serif K", serif';
+const SANS_FALLBACK = '"Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Source Han Sans K", NanumGothic, Dotum, sans-serif';
+const serif = (...names) => names.map(n => `"${n}"`).join(', ') + ', ' + SERIF_FALLBACK;
+const sans = (...names) => names.map(n => `"${n}"`).join(', ') + ', ' + SANS_FALLBACK;
+
+/* --------------------------------------------------------------------------
    Eras
    -------------------------------------------------------------------------- */
 export const ERAS = [
@@ -46,7 +59,7 @@ export const ERAS = [
     blurb: '4:3 명조체 자막. 두꺼운 검은 그림자, 크림색 글자, 느린 페이드.',
     aspect: '4:3',
     filter: 'vhs91',
-    fonts: { display: '"Nanum Myeongjo", serif', body: '"Nanum Myeongjo", serif', caption: '"Nanum Myeongjo", serif' },
+    fonts: { display: serif('Nanum Myeongjo'), body: serif('Nanum Myeongjo'), caption: serif('Nanum Myeongjo') },
     weights: { display: 800, body: 400 },
     pal: { bg: '#000000', fg: '#f4ecda', sub: '#d8cbae', accent: '#d9412f', rule: '#c8a02c', plate: 'rgba(0,0,0,0)' },
     type: { track: 0.015, lineGap: 1.34, titleScale: 1.0, shadow: { x: 5, y: 5, blur: 0, color: 'rgba(0,0,0,.92)' }, stroke: 0 },
@@ -60,7 +73,7 @@ export const ERAS = [
     blurb: '금색 그라데이션 제목, 좌우 와이프, 굵은 고딕 부제.',
     aspect: '4:3',
     filter: 'svhs95',
-    fonts: { display: '"Song Myung", "Nanum Myeongjo", serif', body: '"Nanum Gothic", sans-serif', caption: '"Nanum Gothic", sans-serif' },
+    fonts: { display: serif('Song Myung', 'Nanum Myeongjo'), body: sans('Nanum Gothic'), caption: sans('Nanum Gothic') },
     weights: { display: 400, body: 800 },
     pal: { bg: '#050403', fg: '#ffe9a8', sub: '#efe3c8', accent: '#e8b53c', rule: '#8d6a1c', plate: 'rgba(0,0,0,0)' },
     type: { track: 0.03, lineGap: 1.3, titleScale: 1.02, shadow: { x: 3, y: 4, blur: 2, color: 'rgba(0,0,0,.85)' }, stroke: 0 },
@@ -75,7 +88,7 @@ export const ERAS = [
     blurb: '파란 그라데이션 판, 좌측 슬라이드 인, 자막 바.',
     aspect: '4:3',
     filter: 'beta99',
-    fonts: { display: '"Nanum Gothic", sans-serif', body: '"Nanum Gothic", sans-serif', caption: '"Nanum Gothic", sans-serif' },
+    fonts: { display: sans('Nanum Gothic'), body: sans('Nanum Gothic'), caption: sans('Nanum Gothic') },
     weights: { display: 800, body: 400 },
     pal: { bg: '#02060f', fg: '#ffffff', sub: '#c9dcf5', accent: '#2f7fe0', rule: '#1b4d8f', plate: 'rgba(12,42,88,.86)' },
     type: { track: 0.0, lineGap: 1.28, titleScale: 0.98, shadow: { x: 2, y: 2, blur: 3, color: 'rgba(0,0,0,.7)' }, stroke: 0 },
@@ -89,7 +102,7 @@ export const ERAS = [
     blurb: '레터박스 16:9, 은은한 글로우 디졸브, 반투명 바.',
     aspect: '16:9',
     filter: 'dv03',
-    fonts: { display: '"Gothic A1", sans-serif', body: '"Gothic A1", sans-serif', caption: '"Nanum Gothic", sans-serif' },
+    fonts: { display: sans('Gothic A1'), body: sans('Gothic A1'), caption: sans('Nanum Gothic') },
     weights: { display: 900, body: 400 },
     pal: { bg: '#04060a', fg: '#ffffff', sub: '#d6dee8', accent: '#5fb0e8', rule: '#2a4054', plate: 'rgba(6,14,24,.62)' },
     type: { track: 0.01, lineGap: 1.3, titleScale: 0.96, shadow: { x: 0, y: 2, blur: 12, color: 'rgba(0,0,0,.75)' }, stroke: 0 },
@@ -103,7 +116,7 @@ export const ERAS = [
     blurb: '가는 고딕, 얇은 괘선, 블러 인. 완전한 16:9.',
     aspect: '16:9',
     filter: 'hd08',
-    fonts: { display: '"Noto Sans KR", sans-serif', body: '"Noto Sans KR", sans-serif', caption: '"Noto Sans KR", sans-serif' },
+    fonts: { display: sans('Noto Sans KR'), body: sans('Noto Sans KR'), caption: sans('Noto Sans KR') },
     weights: { display: 300, body: 300 },
     pal: { bg: '#06080b', fg: '#ffffff', sub: '#b9c3cf', accent: '#7fd3ff', rule: '#3b4854', plate: 'rgba(8,12,18,.55)' },
     type: { track: 0.08, lineGap: 1.4, titleScale: 0.9, shadow: { x: 0, y: 1, blur: 8, color: 'rgba(0,0,0,.55)' }, stroke: 0 },
@@ -117,7 +130,7 @@ export const ERAS = [
     blurb: '넓은 자간, 마스크 와이프, 얇은 선. 플랫 디자인.',
     aspect: '16:9',
     filter: 'dig14',
-    fonts: { display: '"Noto Sans KR", sans-serif', body: '"Gothic A1", sans-serif', caption: '"Gothic A1", sans-serif' },
+    fonts: { display: sans('Noto Sans KR'), body: sans('Gothic A1'), caption: sans('Gothic A1') },
     weights: { display: 700, body: 400 },
     pal: { bg: '#0a0c10', fg: '#ffffff', sub: '#aab4c0', accent: '#ff5a5f', rule: '#ffffff', plate: 'rgba(255,255,255,.06)' },
     type: { track: 0.16, lineGap: 1.45, titleScale: 0.86, shadow: { x: 0, y: 0, blur: 0, color: 'rgba(0,0,0,0)' }, stroke: 0 },
@@ -131,7 +144,7 @@ export const ERAS = [
     blurb: '굵은 기하 고딕, 글자별 스태거 팝, 강한 대비.',
     aspect: '16:9',
     filter: 'uhd21',
-    fonts: { display: '"Black Han Sans", sans-serif', body: '"Noto Sans KR", sans-serif', caption: '"Noto Sans KR", sans-serif' },
+    fonts: { display: sans('Black Han Sans', 'Noto Sans KR'), body: sans('Noto Sans KR'), caption: sans('Noto Sans KR') },
     weights: { display: 400, body: 500 },
     pal: { bg: '#08090c', fg: '#ffffff', sub: '#9aa3b2', accent: '#ffd166', rule: '#ffd166', plate: 'rgba(255,209,102,.14)' },
     type: { track: -0.01, lineGap: 1.18, titleScale: 1.06, shadow: { x: 0, y: 6, blur: 22, color: 'rgba(0,0,0,.6)' }, stroke: 0 },
@@ -145,7 +158,7 @@ export const ERAS = [
     blurb: '가변 굵기, 스프링 스택 등장, 미니멀 그라데이션.',
     aspect: '16:9',
     filter: 'none',
-    fonts: { display: '"IBM Plex Sans KR", sans-serif', body: '"IBM Plex Sans KR", sans-serif', caption: '"Noto Sans KR", sans-serif' },
+    fonts: { display: sans('IBM Plex Sans KR'), body: sans('IBM Plex Sans KR'), caption: sans('Noto Sans KR') },
     weights: { display: 600, body: 300 },
     pal: { bg: '#0b0d12', fg: '#f5f7fb', sub: '#96a0b0', accent: '#8b7bff', rule: '#8b7bff', plate: 'rgba(139,123,255,.12)' },
     type: { track: 0.02, lineGap: 1.24, titleScale: 0.94, shadow: { x: 0, y: 10, blur: 34, color: 'rgba(0,0,0,.55)' }, stroke: 0 },

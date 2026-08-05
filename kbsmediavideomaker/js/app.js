@@ -79,10 +79,13 @@ const LBL = 96;                   // timeline lane-label width
   boot.classList.add('boot--gone');
   setTimeout(() => boot.remove(), 400);
 
-  if (!localStorage.getItem('kbsmvm.seen')) {
-    $('#about').hidden = false;
-    localStorage.setItem('kbsmvm.seen', '1');
-  }
+  // localStorage throws outright in some embedded/sandboxed contexts
+  try {
+    if (!localStorage.getItem('kbsmvm.seen')) {
+      $('#about').hidden = false;
+      localStorage.setItem('kbsmvm.seen', '1');
+    }
+  } catch (e) { $('#about').hidden = false; }
 })();
 
 /* ==========================================================================
@@ -894,7 +897,8 @@ function finishExport() {
   document.body.append(a); a.click();
   setTimeout(() => a.remove(), 1000);
   setTimeout(() => URL.revokeObjectURL(url), 20000);
-  toast(`내보내기 완료 — ${(blob.size / 1048576).toFixed(1)} MB`);
+  const size = blob.size >= 1048576 ? `${(blob.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(blob.size / 1024))} KB`;
+  toast(`내보내기 완료 — ${size}`);
   draw();
 }
 

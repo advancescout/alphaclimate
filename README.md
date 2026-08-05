@@ -88,10 +88,15 @@ proprietary font or signature music is included.
 `js/templates.js` (opening/ending/caption builders) · `js/app.js` (editor).
 No build step.
 
-### Deploying the domain
-`vercel.json` rewrites requests whose `Host` is `kbsmediavideomaker.com` or
-`www.kbsmediavideomaker.com` into `/kbsmediavideomaker/`. The domain still has
-to be added to this Vercel project in the dashboard for those rewrites to fire.
+### Deploying
+This site is deployed as its **own Vercel project** (`kbsmediavideomaker`), separate
+from the Köppen one, with `kbsmediavideomaker.com` attached to it — so set that
+project's **Root Directory** to `kbsmediavideomaker`. Vercel then treats this
+folder as the project root and reads `kbsmediavideomaker/vercel.json` for
+headers. Nothing in the repo root is involved.
+
+Asset filenames aren't content-hashed, so `vercel.json` makes `css/` and `js/`
+revalidate; without that a deploy leaves stale JS running against fresh HTML.
 
 ## Build scripts (`build/`)
 - `build_kg.py` — convert Beck-2023 GeoTIFFs → `kg_<period>[_<ssp>].kgz`

@@ -1,19 +1,19 @@
 {
-  "rewrites": [
+  "redirects": [
     {
-      "source": "/kbsmediavideomaker/:path*",
-      "has": [{ "type": "host", "value": "(www\\.)?kbsmediavideomaker\\.com" }],
-      "destination": "/kbsmediavideomaker/:path*"
+      "source": "/kbsmediavideomaker",
+      "destination": "https://www.kbsmediavideomaker.com",
+      "permanent": true
     },
     {
-      "source": "/",
-      "has": [{ "type": "host", "value": "(www\\.)?kbsmediavideomaker\\.com" }],
-      "destination": "/kbsmediavideomaker/index.html"
+      "source": "/kbsmediavideomaker/",
+      "destination": "https://www.kbsmediavideomaker.com",
+      "permanent": true
     },
     {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "(www\\.)?kbsmediavideomaker\\.com" }],
-      "destination": "/kbsmediavideomaker/:path*"
+      "source": "/kbsmediavideomaker/:path+",
+      "destination": "https://www.kbsmediavideomaker.com/:path+",
+      "permanent": true
     }
   ],
   "headers": [
@@ -23,10 +23,6 @@
     },
     {
       "source": "/",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
-    },
-    {
-      "source": "/kbsmediavideomaker/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
     }
   ]

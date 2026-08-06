@@ -45,53 +45,16 @@ click-to-inspect place names. No build step.
 
 ---
 
-# KBS Media Video Maker — kbsmediavideomaker.com
+# KBS Media Video Maker
 
-A second, unrelated static site lives in `kbsmediavideomaker/`: a browser-based
-maker for Korean broadcast-style titles, dub captions and credit sequences.
+Moved out of this repo. It now lives in its own repository and Vercel project:
 
-**Live:** https://www.kbsmediavideomaker.com (also served at
-`/kbsmediavideomaker/` on this deployment)
+- **Source:** https://github.com/advancescout/kbsmediavideomaker
+- **Live:** https://www.kbsmediavideomaker.com
 
-Pick a year from **1991 to 2026** and the whole look changes with it — typeface
-stack, letter-spacing, palette, title geometry, entrance animation and the
-default tape filter. Eight eras (analogue Myeongjo → gold-bevel gothic →
-digital plates → soft gothic → HD → flat → kinetic → streaming modern), with
-per-year motion tweaks so clicking 1991 and 1994 are visibly different moves.
-
-- **Two layers** — layer 1 is titles, lower-thirds, credit rolls and dub
-  captions; layer 2 takes the user's own video and image files (fit, scale,
-  position, rotation, opacity, blend mode, trim). Layer order is switchable.
-- **Programme types** — TV drama, animation, anime dub, children's, documentary,
-  music, foreign drama — each with its own Korean credit vocabulary
-  (`성우`, `한국어판 연출`, `극본`, `구성` …) and one-click opening/ending builders.
-- **Picture filters** — worn VHS, n-th-generation VHS, S-VHS, Betacam SP, DV,
-  early HD, digital, UHD, telecine, and **no filter at all**. Built from canvas
-  composite ops (chroma bleed, scanlines, head-switching noise, dropouts,
-  interlace comb, bloom, vignette, gate weave) — no per-pixel JS loops, so it
-  holds 30fps at 720p while recording.
-- **Audio** — separate music and dub tracks with volume, offset and fades, plus
-  per-clip original audio for imported video. Nothing is generated: real
-  recordings in, real recordings out.
-- **Export** — `MediaRecorder` over `canvas.captureStream()` + a WebAudio
-  destination → WebM (VP9/Opus) download.
-
-Everything runs client-side; no file leaves the browser. Fonts are open-licence
-(SIL OFL) Korean families from Google Fonts chosen to match each era's
-skeleton. Fan-made and unaffiliated with KBS — no broadcaster logo, trademark,
-proprietary font or signature music is included.
-
-### Files
-`kbsmediavideomaker/index.html` · `css/app.css` ·
-`js/eras.js` (era + year style system, programme types, filters) ·
-`js/render.js` (frame compositor, text presets, filter chain) ·
-`js/templates.js` (opening/ending/caption builders) · `js/app.js` (editor).
-No build step.
-
-### Deploying the domain
-`vercel.json` rewrites requests whose `Host` is `kbsmediavideomaker.com` or
-`www.kbsmediavideomaker.com` into `/kbsmediavideomaker/`. The domain still has
-to be added to this Vercel project in the dashboard for those rewrites to fire.
+The copy that used to sit in `kbsmediavideomaker/` here was a stale duplicate —
+the standalone repo is ahead of it. `vercel.json` redirects the old
+`/kbsmediavideomaker/` path to the live domain so existing links keep working.
 
 ## Build scripts (`build/`)
 - `build_kg.py` — convert Beck-2023 GeoTIFFs → `kg_<period>[_<ssp>].kgz`

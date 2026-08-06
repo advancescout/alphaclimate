@@ -6,8 +6,13 @@
       "permanent": true
     },
     {
-      "source": "/kbsmediavideomaker/:path*",
-      "destination": "https://www.kbsmediavideomaker.com/:path*",
+      "source": "/kbsmediavideomaker/",
+      "destination": "https://www.kbsmediavideomaker.com",
+      "permanent": true
+    },
+    {
+      "source": "/kbsmediavideomaker/:path+",
+      "destination": "https://www.kbsmediavideomaker.com/:path+",
       "permanent": true
     }
   ],
